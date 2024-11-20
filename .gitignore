@@ -1,0 +1,69 @@
+# Unity Generated Files
+Library/
+Temp/
+Obj/
+Build/
+Logs/
+MemoryCaptures/
+
+# Asset Database
+*.pidb
+*.sln
+*.userprefs
+*.csproj
+*.unityproj
+
+# Builds
+Build/
+
+# Unity Crash Reports
+sysinfo.txt
+
+# Lightmap data
+/Lightmap-
+
+# Generated Visual Studio project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+
+# File containing user-specific preferences
+*.swp
+*.sw?
+
+# Unity Asset Store tools
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# Unity Version Control (Collaborate)
+.collabignore
+
+# Rider and JetBrains settings
+.idea/
+*.dotSettings.user
+
+# Mac System Files
+.DS_Store
+
+# Windows System Files
+Thumbs.db
+
+# Vuforia Engine Files
+Assets/Editor/Vuforia/
+Assets/StreamingAssets/QCAR/
+.vuforia/
+*.dat
+*.xml
+*.vcproj
+*.vcp
+
+# Vuforia Package Files
+Packages/com.ptc.vuforia.engine/
