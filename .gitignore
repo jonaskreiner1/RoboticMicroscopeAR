@@ -67,3 +67,4 @@ Assets/StreamingAssets/QCAR/
 
 # Vuforia Package Files
 Packages/com.ptc.vuforia.engine/
+Packages/com.ptc.vuforia.engine-*.tgz
