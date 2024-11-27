@@ -7,21 +7,19 @@ public class WebcamDisplay : MonoBehaviour
 
     [SerializeField]
     private int selectedWebcamIndex = 0; // Selected webcam index in the Inspector
-    private Material webcamMaterial;
+
+    public int SelectedWebcamIndex
+    {
+        get => selectedWebcamIndex;
+        set => selectedWebcamIndex = value; // Allow assignment
+    }
 
     void OnValidate()
     {
-        // Get the list of available webcam devices
         devices = WebCamTexture.devices;
 
         if (devices.Length > 0)
         {
-            for (int i = 0; i < devices.Length; i++)
-            {
-                Debug.Log("Webcam " + i + ": " + devices[i].name);
-            }
-
-            // Keep the selected index within range
             selectedWebcamIndex = Mathf.Clamp(selectedWebcamIndex, 0, devices.Length - 1);
         }
     }
@@ -47,16 +45,14 @@ public class WebcamDisplay : MonoBehaviour
             webcamTexture.Stop();
         }
 
-        // Initialize the webcam
         webcamTexture = new WebCamTexture(devices[index].name);
 
         Renderer renderer = GetComponent<Renderer>();
-        webcamMaterial = renderer.material;
+        Material webcamMaterial = renderer.material;
         webcamMaterial.mainTexture = webcamTexture;
 
         webcamTexture.Play();
 
-        // Adjust UVs after starting the webcam
         AdjustUVs();
     }
 
@@ -68,22 +64,20 @@ public class WebcamDisplay : MonoBehaviour
         Mesh mesh = meshFilter.mesh;
         Vector2[] uv = mesh.uv;
 
-        // Calculate the aspect ratio of the webcam and the display mesh
         float webcamAspect = (float)webcamTexture.width / webcamTexture.height;
         float meshAspect = transform.localScale.x / transform.localScale.y;
 
-        // Adjust UVs based on aspect ratios
         for (int i = 0; i < uv.Length; i++)
         {
             uv[i] = new Vector2(uv[i].x, uv[i].y);
 
             if (webcamAspect > meshAspect)
             {
-                uv[i].x = (uv[i].x - 0.5f) * (meshAspect / webcamAspect) + 0.5f; // Center the feed
+                uv[i].x = (uv[i].x - 0.5f) * (meshAspect / webcamAspect) + 0.5f;
             }
             else
             {
-                uv[i].y = (uv[i].y - 0.5f) * (webcamAspect / meshAspect) + 0.5f; // Center the feed
+                uv[i].y = (uv[i].y - 0.5f) * (webcamAspect / meshAspect) + 0.5f;
             }
         }
 
