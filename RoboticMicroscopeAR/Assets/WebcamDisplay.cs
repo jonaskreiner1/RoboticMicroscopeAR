@@ -45,6 +45,7 @@ public class WebcamDisplay : MonoBehaviour
             webcamTexture.Stop();
         }
 
+        // Initialize WebCamTexture for the selected device
         webcamTexture = new WebCamTexture(devices[index].name);
 
         Renderer renderer = GetComponent<Renderer>();
@@ -53,35 +54,32 @@ public class WebcamDisplay : MonoBehaviour
 
         webcamTexture.Play();
 
-        AdjustUVs();
+        AdjustScaleToFitScreen();
     }
 
-    void AdjustUVs()
+    void AdjustScaleToFitScreen()
     {
-        MeshFilter meshFilter = GetComponent<MeshFilter>();
-        if (meshFilter == null) return;
+        // Adjust the object's scale to fit the webcam texture to the full screen
+        if (webcamTexture == null) return;
 
-        Mesh mesh = meshFilter.mesh;
-        Vector2[] uv = mesh.uv;
+        float webcamAspect = (float)webcamTexture.width / webcamTexture.height; // Webcam aspect ratio
+        float screenAspect = (float)Screen.width / Screen.height; // Screen aspect ratio
 
-        float webcamAspect = (float)webcamTexture.width / webcamTexture.height;
-        float meshAspect = transform.localScale.x / transform.localScale.y;
+        // Calculate scale to fit the screen
+        Vector3 scale = transform.localScale;
 
-        for (int i = 0; i < uv.Length; i++)
+        if (webcamAspect > screenAspect)
         {
-            uv[i] = new Vector2(uv[i].x, uv[i].y);
-
-            if (webcamAspect > meshAspect)
-            {
-                uv[i].x = (uv[i].x - 0.5f) * (meshAspect / webcamAspect) + 0.5f;
-            }
-            else
-            {
-                uv[i].y = (uv[i].y - 0.5f) * (webcamAspect / meshAspect) + 0.5f;
-            }
+            // Wider than the screen, adjust height
+            scale.y = scale.x / webcamAspect;
+        }
+        else
+        {
+            // Taller than the screen, adjust width
+            scale.x = scale.y * webcamAspect;
         }
 
-        mesh.uv = uv;
+        transform.localScale = scale;
     }
 
     void OnDisable()
