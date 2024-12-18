@@ -1,36 +1,72 @@
 using UnityEngine;
 
+[ExecuteAlways]
 public class WebcamDisplay : MonoBehaviour
 {
     private WebCamTexture webcamTexture;
     private WebCamDevice[] devices;
 
     [SerializeField]
-    private int selectedWebcamIndex = 0; // Selected webcam index in the Inspector
+    private string selectedWebcamName = ""; // Selected webcam device name
 
-    public int SelectedWebcamIndex
+    [SerializeField]
+    private Vector2 targetResolution = new Vector2(2592, 1944); // Default resolution
+
+    public string SelectedWebcamName
     {
-        get => selectedWebcamIndex;
-        set => selectedWebcamIndex = value; // Allow assignment
+        get => selectedWebcamName;
+        set
+        {
+            if (selectedWebcamName != value)
+            {
+                selectedWebcamName = value;
+                UpdateWebcamTexture();
+            }
+        }
+    }
+
+    public Vector2 TargetResolution
+    {
+        get => targetResolution;
+        set
+        {
+            targetResolution = value;
+            UpdateWebcamTexture();
+        }
     }
 
     void OnValidate()
     {
         devices = WebCamTexture.devices;
 
-        if (devices.Length > 0)
+        if (devices.Length > 0 && string.IsNullOrEmpty(selectedWebcamName))
         {
-            selectedWebcamIndex = Mathf.Clamp(selectedWebcamIndex, 0, devices.Length - 1);
+            selectedWebcamName = devices[0].name;
+        }
+
+        if (!Application.isPlaying)
+        {
+            UpdateWebcamTexture();
         }
     }
 
     void Start()
     {
+        InitializeWebcam();
+    }
+
+    public void UpdateWebcamTexture()
+    {
+        InitializeWebcam();
+    }
+
+    void InitializeWebcam()
+    {
         devices = WebCamTexture.devices;
 
         if (devices.Length > 0)
         {
-            StartWebcam(selectedWebcamIndex);
+            StartWebcam(selectedWebcamName);
         }
         else
         {
@@ -38,44 +74,47 @@ public class WebcamDisplay : MonoBehaviour
         }
     }
 
-    void StartWebcam(int index)
+    void StartWebcam(string webcamName)
     {
         if (webcamTexture != null && webcamTexture.isPlaying)
         {
             webcamTexture.Stop();
         }
 
-        // Initialize WebCamTexture for the selected device
-        webcamTexture = new WebCamTexture(devices[index].name);
+        int deviceIndex = System.Array.FindIndex(devices, d => d.name == webcamName);
+        if (deviceIndex < 0)
+        {
+            Debug.LogError("Selected webcam not found!");
+            return;
+        }
+
+        webcamTexture = new WebCamTexture(devices[deviceIndex].name, (int)targetResolution.x, (int)targetResolution.y);
 
         Renderer renderer = GetComponent<Renderer>();
-        Material webcamMaterial = renderer.material;
-        webcamMaterial.mainTexture = webcamTexture;
+        if (renderer != null)
+        {
+            renderer.sharedMaterial.mainTexture = webcamTexture;
+        }
 
         webcamTexture.Play();
-
-        AdjustScaleToFitScreen();
+        AdjustScaleToFitResolution();
     }
 
-    void AdjustScaleToFitScreen()
+    void AdjustScaleToFitResolution()
     {
-        // Adjust the object's scale to fit the webcam texture to the full screen
         if (webcamTexture == null) return;
 
-        float webcamAspect = (float)webcamTexture.width / webcamTexture.height; // Webcam aspect ratio
-        float screenAspect = (float)Screen.width / Screen.height; // Screen aspect ratio
+        float webcamAspect = (float)webcamTexture.width / webcamTexture.height;
+        float targetAspect = targetResolution.x / targetResolution.y;
 
-        // Calculate scale to fit the screen
         Vector3 scale = transform.localScale;
 
-        if (webcamAspect > screenAspect)
+        if (webcamAspect > targetAspect)
         {
-            // Wider than the screen, adjust height
             scale.y = scale.x / webcamAspect;
         }
         else
         {
-            // Taller than the screen, adjust width
             scale.x = scale.y * webcamAspect;
         }
 

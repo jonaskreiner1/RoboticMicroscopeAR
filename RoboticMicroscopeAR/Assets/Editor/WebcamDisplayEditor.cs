@@ -4,32 +4,51 @@ using UnityEngine;
 [CustomEditor(typeof(WebcamDisplay))]
 public class WebcamDisplayEditor : Editor
 {
+    private string[] webcamNames; // Array of webcam names
+    private int selectedWebcamIndex = 0;
+
     public override void OnInspectorGUI()
     {
         WebcamDisplay webcamDisplay = (WebcamDisplay)target;
 
-        // Get the list of webcam devices
+        // Fetch webcam devices
         WebCamDevice[] devices = WebCamTexture.devices;
-        string[] deviceNames = new string[devices.Length];
 
-        for (int i = 0; i < devices.Length; i++)
-        {
-            deviceNames[i] = devices[i].name;
-        }
-
-        // Display the dropdown if there are devices
         if (devices.Length > 0)
         {
-            webcamDisplay.SelectedWebcamIndex = EditorGUILayout.Popup("Webcam", webcamDisplay.SelectedWebcamIndex, deviceNames);
+            // Populate webcam names
+            webcamNames = new string[devices.Length];
+            for (int i = 0; i < devices.Length; i++)
+            {
+                webcamNames[i] = devices[i].name;
+            }
+
+            // Find the currently selected index
+            selectedWebcamIndex = System.Array.IndexOf(webcamNames, webcamDisplay.SelectedWebcamName);
+            if (selectedWebcamIndex < 0) selectedWebcamIndex = 0;
+
+            // Display dropdown and detect changes
+            int newSelectedIndex = EditorGUILayout.Popup("Webcam Device", selectedWebcamIndex, webcamNames);
+
+            if (newSelectedIndex != selectedWebcamIndex)
+            {
+                selectedWebcamIndex = newSelectedIndex;
+                webcamDisplay.SelectedWebcamName = webcamNames[selectedWebcamIndex];
+                webcamDisplay.UpdateWebcamTexture(); // Immediately update texture
+                EditorUtility.SetDirty(webcamDisplay); // Mark as changed
+            }
         }
         else
         {
-            EditorGUILayout.LabelField("No webcams detected");
+            EditorGUILayout.LabelField("No webcams detected.");
         }
 
-        // Apply changes to the serialized object
-        if (GUI.changed)
+        // Target resolution field
+        Vector2 newResolution = EditorGUILayout.Vector2Field("Target Resolution", webcamDisplay.TargetResolution);
+        if (newResolution != webcamDisplay.TargetResolution)
         {
+            webcamDisplay.TargetResolution = newResolution;
+            webcamDisplay.UpdateWebcamTexture();
             EditorUtility.SetDirty(webcamDisplay);
         }
     }
