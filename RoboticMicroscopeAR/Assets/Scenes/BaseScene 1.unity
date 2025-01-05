@@ -460,6 +460,19 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 832029101}
   m_PrefabAsset: {fileID: 0}
+--- !u!158 &764454910
+Texture:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
 --- !u!1001 &832029101
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -470,7 +483,7 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: cc9555660233b1f4c8e9da5c66a9dab1,
         type: 3}
       propertyPath: m_RootOrder
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: cc9555660233b1f4c8e9da5c66a9dab1,
         type: 3}
@@ -515,12 +528,12 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: cc9555660233b1f4c8e9da5c66a9dab1,
         type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: cc9555660233b1f4c8e9da5c66a9dab1,
         type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: cc9555660233b1f4c8e9da5c66a9dab1,
         type: 3}
@@ -653,19 +666,6 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0
---- !u!158 &944226455
-Texture:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
 --- !u!1 &1236620823
 GameObject:
   m_ObjectHideFlags: 0
@@ -1196,7 +1196,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: New Material (Instance)
-  m_Shader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 10752, guid: 0000000000000000f000000000000000, type: 0}
   m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -1229,7 +1229,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 944226455}
+        m_Texture: {fileID: 764454910}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
@@ -1295,7 +1295,7 @@ Transform:
   m_GameObject: {fileID: 2141887126}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 199}
-  m_LocalScale: {x: 200.1481, y: 150.11107, z: 1.3}
+  m_LocalScale: {x: 200.1481, y: 112.583305, z: 1.3}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 93977795}
@@ -1377,5 +1377,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f4c4c2f47d971514281d8464a5405501, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  selectedWebcamName: USB camera 1
+  selectedWebcamName: OBS Virtual Camera
   targetResolution: {x: 2592, y: 1944}
