@@ -292,6 +292,19 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!158 &109150899
+Texture:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  m_ImageContentsHash:
+    serializedVersion: 2
+    Hash: 00000000000000000000000000000000
+  m_ForcedFallbackFormat: 4
+  m_DownscaleFallback: 0
+  m_IsAlphaChannelOptional: 0
 --- !u!1 &114979857
 GameObject:
   m_ObjectHideFlags: 0
@@ -552,19 +565,6 @@ Transform:
     type: 3}
   m_PrefabInstance: {fileID: 832029101}
   m_PrefabAsset: {fileID: 0}
---- !u!158 &699291185
-Texture:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: 
-  m_ImageContentsHash:
-    serializedVersion: 2
-    Hash: 00000000000000000000000000000000
-  m_ForcedFallbackFormat: 4
-  m_DownscaleFallback: 0
-  m_IsAlphaChannelOptional: 0
 --- !u!1001 &832029101
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -853,9 +853,9 @@ MonoBehaviour:
   PreviewVisible: 1
   RuntimeOcclusion: 0
   RuntimeCollider: 0
-  mTrackableName: whatsappimage2024-11-20at12
+  mTrackableName: qrtarget
   mInitializedInEditor: 1
-  mDataSetPath: Vuforia/qr.xml
+  mDataSetPath: Vuforia/qr1.xml
   mAspectRatio: 1.006289
   mImageTargetType: 0
   mWidth: 1
@@ -879,8 +879,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mObserverBehaviour: {fileID: 1236620826}
   mHiddenRoot: {fileID: 0}
-  mTargetName: whatsappimage2024-11-20at12
-  mDatasetName: Vuforia/qr.xml
+  mTargetName: qrtarget
+  mDatasetName: Vuforia/qr1.xml
   mCastedBehaviour: {fileID: 1236620826}
   mMeshFilter: {fileID: 0}
   mMeshRenderer: {fileID: 0}
@@ -1276,7 +1276,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
-        m_Texture: {fileID: 699291185}
+        m_Texture: {fileID: 109150899}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MetallicGlossMap:
