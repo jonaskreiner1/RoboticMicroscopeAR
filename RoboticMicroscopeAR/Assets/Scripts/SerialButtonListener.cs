@@ -9,6 +9,7 @@ public class SerialButtonListener : MonoBehaviour
     public int baudRate = 9600; // Match the baud rate of your ESP32
 
     private bool isButtonPressed = false; // Tracks the button state
+    private bool serialAvailable = true; // Tracks if the serial port is available
 
     void Start()
     {
@@ -22,13 +23,14 @@ public class SerialButtonListener : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Failed to open serial port {comPort}: {e.Message}");
+            serialAvailable = false;
+            Debug.LogWarning($"Failed to open serial port {comPort}: {e.Message}. Switching to keyboard input.");
         }
     }
 
     void Update()
     {
-        if (serialPort != null && serialPort.IsOpen)
+        if (serialAvailable && serialPort != null && serialPort.IsOpen)
         {
             try
             {
@@ -58,6 +60,29 @@ public class SerialButtonListener : MonoBehaviour
             catch (System.TimeoutException)
             {
                 // Ignore timeout exceptions
+            }
+        }
+        else
+        {
+            // Handle keyboard input as fallback
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                if (!isButtonPressed)
+                {
+                    Debug.Log("Button Pressed: B key pressed");
+                    isButtonPressed = true;
+                    // You can trigger other actions here for button press
+                }
+            }
+
+            if (Input.GetKeyUp(KeyCode.B))
+            {
+                if (isButtonPressed)
+                {
+                    Debug.Log("Button Released: B key released");
+                    isButtonPressed = false;
+                    // You can trigger other actions here for button release
+                }
             }
         }
     }
