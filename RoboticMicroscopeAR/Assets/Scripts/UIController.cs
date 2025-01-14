@@ -1,5 +1,6 @@
 using System;
 using System.IO.Ports;
+using System.Threading;
 using UnityEngine;
 using Peak.Can.Basic;
 
@@ -18,12 +19,17 @@ public class UIController : MonoBehaviour
     private bool isReceived2 = false;
     public Quaternion finalQuaternion;
 
+    private Quaternion offsetQuaternion = Quaternion.identity; // Offset quaternion for resetting IMU
+    private bool isOffsetSet = false; // Flag to determine if the offset has been set
+
     // Serial Port Variables
     private SerialPort serialPort;
     public string comPort = "COM6"; // Set the COM port here
     public int baudRate = 9600; // Match the baud rate of your ESP32
     private bool isButtonPressed = false;
-    private bool serialAvailable = true;
+    private Thread serialThread; // Thread for serial reading
+    private bool isThreadRunning = false;
+    private string serialData = null;
 
     // UI Elements
     [Header("UI Elements")]
@@ -32,6 +38,12 @@ public class UIController : MonoBehaviour
     public GameObject hoverLoupe;       // UI for hover loupe
     public GameObject hoverLightBulb;   // UI for hover light bulb
     public GameObject uiContainer;      // UI container (all UI elements)
+
+    [Header("Confirmation UI")]
+    public GameObject confirmationLock;
+    public GameObject confirmationUnlock;
+    public GameObject confirmationLoupe;
+    public GameObject confirmationLightBulb;
 
     void Start()
     {
@@ -51,14 +63,17 @@ public class UIController : MonoBehaviour
         {
             serialPort.Open();
             serialPort.ReadTimeout = 100;
-            serialAvailable = true;
             Debug.Log($"Serial port {comPort} opened at {baudRate} baud.");
         }
         catch (System.Exception e)
         {
-            serialAvailable = false;
             Debug.LogWarning($"Failed to open serial port {comPort}: {e.Message}. Switching to keyboard input.");
         }
+
+        // Start serial reading thread
+        isThreadRunning = true;
+        serialThread = new Thread(ReadSerial);
+        serialThread.Start();
 
         // Ensure UI is initially hidden
         if (uiContainer != null) uiContainer.SetActive(false);
@@ -66,6 +81,10 @@ public class UIController : MonoBehaviour
         if (hoverLock != null) hoverLock.SetActive(false);
         if (hoverLoupe != null) hoverLoupe.SetActive(false);
         if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
+        if (confirmationLock != null) confirmationLock.SetActive(false);
+        if (confirmationUnlock != null) confirmationUnlock.SetActive(false);
+        if (confirmationLoupe != null) confirmationLoupe.SetActive(false);
+        if (confirmationLightBulb != null) confirmationLightBulb.SetActive(false);
     }
 
     void Update()
@@ -91,39 +110,58 @@ public class UIController : MonoBehaviour
 
     private void HandleButtonInput()
     {
-        if (serialAvailable && serialPort != null && serialPort.IsOpen)
+        if (!string.IsNullOrEmpty(serialData))
+        {
+            string data = serialData;
+            serialData = null; // Clear the buffer to avoid processing the same data repeatedly
+
+            // Process the serial data
+            if (data == "1" && !isButtonPressed)
+            {
+                Debug.Log("Button Pressed: Received 1");
+                isButtonPressed = true;
+            }
+            else if (data == "0" && isButtonPressed)
+            {
+                Debug.Log("Button Released: Received 0");
+                isButtonPressed = false;
+                TriggerConfirmation();
+            }
+        }
+
+        // Fallback to keyboard input
+        if (Input.GetKeyDown(KeyCode.B) && !isButtonPressed)
+        {
+            Debug.Log("Button Pressed: B key pressed");
+            isButtonPressed = true;
+        }
+        if (Input.GetKeyUp(KeyCode.B) && isButtonPressed)
+        {
+            Debug.Log("Button Released: B key released");
+            isButtonPressed = false;
+            TriggerConfirmation();
+        }
+    }
+
+    private void ReadSerial()
+    {
+        while (isThreadRunning)
         {
             try
             {
-                string data = serialPort.ReadLine().Trim();
-                if (data == "1" && !isButtonPressed)
+                if (serialPort != null && serialPort.IsOpen)
                 {
-                    Debug.Log("Button Pressed: Received 1");
-                    isButtonPressed = true;
-                }
-                else if (data == "0" && isButtonPressed)
-                {
-                    Debug.Log("Button Released: Received 0");
-                    isButtonPressed = false;
+                    string data = serialPort.ReadLine().Trim();
+                    serialData = data; // Store the data to be processed in the Update loop
                 }
             }
-            catch (System.TimeoutException)
+            catch (TimeoutException)
             {
-                // Ignore timeout exceptions
+                // Suppress timeout exceptions as they're expected when no data is available
             }
-        }
-        else
-        {
-            // Fallback to keyboard input
-            if (Input.GetKeyDown(KeyCode.B) && !isButtonPressed)
+            catch (Exception ex)
             {
-                Debug.Log("Button Pressed: B key pressed");
-                isButtonPressed = true;
-            }
-            if (Input.GetKeyUp(KeyCode.B) && isButtonPressed)
-            {
-                Debug.Log("Button Released: B key released");
-                isButtonPressed = false;
+                Debug.LogWarning($"Unexpected serial read error: {ex.Message}");
             }
         }
     }
@@ -149,7 +187,19 @@ public class UIController : MonoBehaviour
 
             if (isReceived1 && isReceived2)
             {
-                finalQuaternion = new Quaternion(x, -y, -z, w); // Adapt axes
+                // Create the raw quaternion from the received data
+                Quaternion rawQuaternion = new Quaternion(x, -y, -z, w);
+
+                // If the offset has not been set, set it now
+                if (!isOffsetSet)
+                {
+                    offsetQuaternion = Quaternion.Inverse(rawQuaternion);
+                    isOffsetSet = true;
+                }
+
+                // Apply the offset to get the adjusted quaternion
+                finalQuaternion = offsetQuaternion * rawQuaternion;
+
                 isReceived1 = false;
                 isReceived2 = false;
             }
@@ -166,46 +216,83 @@ public class UIController : MonoBehaviour
         {
             Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            // Handle hoverLock and hoverUnlock (corrected behavior)
-            if (eulerAngles.x >= 7 && eulerAngles.x <= 15)
+            // Handle hoverLock and hoverUnlock
+            if (eulerAngles.x >= 7 && eulerAngles.x <= 45)
             {
-                if (hoverLock != null) hoverLock.SetActive(true);
-                if (hoverUnlock != null) hoverUnlock.SetActive(false);
+                ActivateSingleUIElement(hoverLock);
             }
-            else if (eulerAngles.x >= 330 && eulerAngles.x <= 340)
+            else if (eulerAngles.x >= 315 && eulerAngles.x <= 353)
             {
-                if (hoverLock != null) hoverLock.SetActive(false);
-                if (hoverUnlock != null) hoverUnlock.SetActive(true);
+                ActivateSingleUIElement(hoverUnlock);
             }
-            else
+            else if (eulerAngles.y >= 345 || eulerAngles.y <= 40)
             {
-                if (hoverLock != null) hoverLock.SetActive(false);
-                if (hoverUnlock != null) hoverUnlock.SetActive(false);
+                ActivateSingleUIElement(hoverLoupe);
             }
-
-            // Handle hoverLoupe and hoverLightBulb (new behavior)
-            if (eulerAngles.y >= 345 || eulerAngles.y <= 20)
+            else if (eulerAngles.y >= 260 && eulerAngles.y <= 320)
             {
-                if (hoverLoupe != null) hoverLoupe.SetActive(true);
+                ActivateSingleUIElement(hoverLightBulb);
             }
             else
             {
-                if (hoverLoupe != null) hoverLoupe.SetActive(false);
-            }
-
-            if (eulerAngles.y >= 260 && eulerAngles.y <= 290)
-            {
-                if (hoverLightBulb != null) hoverLightBulb.SetActive(true);
-            }
-            else
-            {
-                if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
+                DeactivateAllUIElements();
             }
         }
     }
 
+    private void ActivateSingleUIElement(GameObject uiElement)
+    {
+        // Deactivate all elements first
+        DeactivateAllUIElements();
+
+        // Activate only the specified element
+        if (uiElement != null) uiElement.SetActive(true);
+    }
+
+    private void DeactivateAllUIElements()
+    {
+        if (hoverLock != null) hoverLock.SetActive(false);
+        if (hoverUnlock != null) hoverUnlock.SetActive(false);
+        if (hoverLoupe != null) hoverLoupe.SetActive(false);
+        if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
+    }
+
+    private void TriggerConfirmation()
+    {
+        if (hoverLock != null && hoverLock.activeSelf && confirmationLock != null)
+        {
+            confirmationLock.SetActive(true);
+            StartCoroutine(HideAfterDelay(confirmationLock));
+        }
+        else if (hoverUnlock != null && hoverUnlock.activeSelf && confirmationUnlock != null)
+        {
+            confirmationUnlock.SetActive(true);
+            StartCoroutine(HideAfterDelay(confirmationUnlock));
+        }
+        else if (hoverLoupe != null && hoverLoupe.activeSelf && confirmationLoupe != null)
+        {
+            confirmationLoupe.SetActive(true);
+            StartCoroutine(HideAfterDelay(confirmationLoupe));
+        }
+        else if (hoverLightBulb != null && hoverLightBulb.activeSelf && confirmationLightBulb != null)
+        {
+            confirmationLightBulb.SetActive(true);
+            StartCoroutine(HideAfterDelay(confirmationLightBulb));
+        }
+    }
+
+    private System.Collections.IEnumerator HideAfterDelay(GameObject uiElement)
+    {
+        yield return new WaitForSeconds(1f);
+        if (uiElement != null) uiElement.SetActive(false);
+    }
+
     private void OnApplicationQuit()
     {
+        // Stop the serial thread
+        isThreadRunning = false;
+        if (serialThread != null) serialThread.Join();
+
         // Close serial port
         if (serialPort != null && serialPort.IsOpen)
         {
@@ -215,5 +302,11 @@ public class UIController : MonoBehaviour
 
         // Uninitialize PCAN
         PCANBasic.Uninitialize(deviceHandle);
+    }
+
+    // Method to reset IMU
+    public void ResetIMU()
+    {
+        isOffsetSet = false; // Clear the offset so the next IMU data sets it
     }
 }
