@@ -347,28 +347,41 @@ public class UIController : MonoBehaviour
         if (uiElement != null) uiElement.SetActive(false);
     }
 
-    private System.Collections.IEnumerator SendIMUData()
+private System.Collections.IEnumerator SendIMUData()
+{
+    while (isInUnlockMode)
     {
-        while (isInUnlockMode)
+        if (finalQuaternion != null)
         {
-            if (finalQuaternion != null)
+            Vector3 eulerAngles = finalQuaternion.eulerAngles;
+
+            // Normalize X, Y, Z to the range -45 to 45
+            float adjustedX = Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45);
+            float adjustedY = Mathf.Clamp(eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y, -45, 45);
+            float adjustedZ = Mathf.Clamp(eulerAngles.z > 180 ? eulerAngles.z - 360 : eulerAngles.z, -45, 45);
+
+            // Create the data string
+            string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:{adjustedZ:F2},L:0,B:1";
+            Debug.Log($"IMU Data Sent: {dataToSend}");
+
+            // Send data via the same serial port used for receiving
+            if (serialPort != null && serialPort.IsOpen)
             {
-                Vector3 eulerAngles = finalQuaternion.eulerAngles;
-
-                float adjustedX = Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45);
-                float adjustedY = Mathf.Clamp(eulerAngles.z > 180 ? eulerAngles.z - 360 : eulerAngles.z, -45, 45);
-
-                string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:0,L:0,B:1";
-                Debug.Log($"IMU Data Sent: {dataToSend}");
-
-                if (serialPort != null && serialPort.IsOpen)
+                try
                 {
                     serialPort.WriteLine(dataToSend);
                 }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to send data: {ex.Message}");
+                }
             }
-            yield return new WaitForSeconds(1f); // Send data every second
         }
+        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
     }
+}
+
+
 
     private void ResetUI()
     {
