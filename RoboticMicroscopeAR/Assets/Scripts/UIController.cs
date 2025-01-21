@@ -30,6 +30,9 @@ public class UIController : MonoBehaviour
     private Thread serialThread;
     private bool isThreadRunning = false;
     private string serialData = null;
+    private bool isInZoomMode = false; // New Zoom Mode flag
+    private bool isInLightBulbMode = false; // New Light Bulb Mode flag
+
 
     // UI Elements
     [Header("UI Elements")]
@@ -44,7 +47,12 @@ public class UIController : MonoBehaviour
     public GameObject confirmationCancel;
     public GameObject confirmationLoupe;
     public GameObject confirmationLightBulb;
+
+    [Header("PreContainer")]
     public GameObject preControlContainer;
+    public GameObject preZoomContainer; // New pre-zoom container
+    public GameObject preLightBulbContainer; // New Light Bulb container
+
 
     private GameObject lastHoveredUI; // Tracks the last hovered UI element
 
@@ -101,57 +109,69 @@ public class UIController : MonoBehaviour
         }
     }
 
-    private void HandleButtonInput()
+private void HandleButtonInput()
+{
+    if (!string.IsNullOrEmpty(serialData))
     {
-        if (!string.IsNullOrEmpty(serialData))
+        string data = serialData;
+        serialData = null;
+
+        Debug.Log($"Serial Data Received: {data}");
+
+        if (data == "1" && !isButtonPressed)
         {
-            string data = serialData;
-            serialData = null;
+            Debug.Log("Button Pressed: Received 1");
+            isButtonPressed = true;
 
-            // Log the received data
-            Debug.Log($"Serial Data Received: {data}");
-
-            if (data == "1" && !isButtonPressed)
+            if (isInZoomMode)
             {
-                Debug.Log("Button Pressed: Received 1");
-                isButtonPressed = true;
-
-                if (isInOrbitMode)
-                {
-                    Debug.Log("Already in Orbit Mode.");
-                }
-                else if (isInUnlockMode)
-                {
-                    Debug.Log("Unlock mode active: Sending IMU data...");
-                    StartSendingIMUData();
-                }
-                else
-                {
-                    ShowUI();
-                }
+                Debug.Log("Zoom Mode active: Sending Z data...");
+                StartSendingZoomData();
             }
-            else if (data == "0" && isButtonPressed)
+            else if (isInUnlockMode)
             {
-                Debug.Log("Button Released: Received 0");
-                isButtonPressed = false;
+                Debug.Log("Unlock mode active: Sending IMU data...");
+                StartSendingIMUData();
+            }
+            else if (isInLightBulbMode)
+            {
+                Debug.Log("Light Bulb Mode active: Sending Light Bulb data...");
+                StartSendingLightBulbData();
+            }
+            else
+            {
+                ShowUI();
+            }
+        }
+        else if (data == "0" && isButtonPressed)
+        {
+            Debug.Log("Button Released: Received 0");
+            isButtonPressed = false;
 
-                if (isInOrbitMode)
-                {
-                    StopOrbitMode();
-                }
-                else if (isInUnlockMode)
-                {
-                    StopSendingIMUData();
-                    ExitUnlockMode();
-                }
-                else
-                {
-                    HandleUISelection();
-                    HideUI();
-                }
+            if (isInZoomMode)
+            {
+                StopSendingZoomData();
+                ExitZoomMode();
+            }
+            else if (isInUnlockMode)
+            {
+                StopSendingIMUData();
+                ExitUnlockMode();
+            }
+            else if (isInLightBulbMode)
+            {
+                StopSendingLightBulbData();
+                ExitLightBulbMode();
+            }
+            else
+            {
+                HandleUISelection();
+                HideUI();
             }
         }
     }
+}
+
 
     private void ShowUI()
     {
@@ -215,28 +235,7 @@ public class UIController : MonoBehaviour
         HideUI();
     }
 
-    private void HandleUISelection()
-    {
-        if (lastHoveredUI == hoverUnlock)
-        {
-            EnterUnlockMode();
-        }
-        else if (lastHoveredUI == hoverCancel)
-        {
-            Debug.Log("Cancel Action Triggered.");
-            TriggerConfirmation(confirmationCancel);
-        }
-        else if (lastHoveredUI == hoverLoupe)
-        {
-            Debug.Log("Loupe Action Triggered.");
-            TriggerConfirmation(confirmationLoupe);
-        }
-        else if (lastHoveredUI == hoverLightBulb)
-        {
-            Debug.Log("Light Bulb Action Triggered.");
-            TriggerConfirmation(confirmationLightBulb);
-        }
-    }
+
 
     private void ReadSerial()
     {
@@ -341,11 +340,152 @@ public class UIController : MonoBehaviour
         }
     }
 
+private void HandleUISelection()
+{
+    if (lastHoveredUI == hoverUnlock)
+    {
+        EnterUnlockMode();
+    }
+    else if (lastHoveredUI == hoverLoupe)
+    {
+        EnterZoomMode(); // Enter Zoom Mode when hoverLoupe is selected
+    }
+    else if (lastHoveredUI == hoverLightBulb)
+    {
+        EnterLightBulbMode(); // Enter Light Bulb Mode when hoverLightBulb is selected
+    }
+    else if (lastHoveredUI == hoverCancel)
+    {
+        Debug.Log("Cancel Action Triggered.");
+        TriggerConfirmation(confirmationCancel);
+    }
+}
+
+
+private void EnterZoomMode()
+{
+    if (hoverLoupe.activeSelf)
+    {
+        Debug.Log("Zoom Mode Triggered.");
+        isInZoomMode = true;
+
+        if (preZoomContainer != null)
+            preZoomContainer.SetActive(true); // Show pre-zoom container
+
+        HideUI(); // Hide the main UI container
+    }
+    else
+    {
+        TriggerConfirmation(lastHoveredUI);
+    }
+}
+
+
+    private void ExitZoomMode()
+    {
+        Debug.Log("Exiting Zoom Mode...");
+        isInZoomMode = false;
+        preZoomContainer.SetActive(false); // Hide pre-zoom container
+    }
+    private void StartSendingZoomData()
+    {
+        if (imuDataCoroutine == null)
+        {
+            imuDataCoroutine = StartCoroutine(SendZoomData());
+        }
+    }
+
+    private void StopSendingZoomData()
+    {
+        if (imuDataCoroutine != null)
+        {
+            StopCoroutine(imuDataCoroutine);
+            imuDataCoroutine = null;
+        }
+    }
+
+    private void EnterLightBulbMode()
+    {
+        if (hoverLightBulb.activeSelf)
+        {
+            Debug.Log("Light Bulb Mode Triggered.");
+            isInLightBulbMode = true; // Activate Light Bulb Mode
+            if (preLightBulbContainer != null)
+                preLightBulbContainer.SetActive(true); // Show Light Bulb container
+
+            HideUI(); // Hide the main UI container
+        }
+        else
+        {
+            TriggerConfirmation(lastHoveredUI);
+        }
+    }
+
+    private void ExitLightBulbMode()
+    {
+        Debug.Log("Exiting Light Bulb Mode...");
+        isInLightBulbMode = false; // Deactivate Light Bulb Mode
+        if (preLightBulbContainer != null)
+            preLightBulbContainer.SetActive(false); // Hide Light Bulb container
+    }
+
+
+
+    private void StartSendingLightBulbData()
+    {
+        if (imuDataCoroutine == null)
+        {
+            imuDataCoroutine = StartCoroutine(SendLightBulbData());
+        }
+    }
+
+    private void StopSendingLightBulbData()
+    {
+        if (imuDataCoroutine != null)
+        {
+            StopCoroutine(imuDataCoroutine);
+            imuDataCoroutine = null;
+        }
+    }
+
+
     private System.Collections.IEnumerator HideAfterDelay(GameObject uiElement)
     {
         yield return new WaitForSeconds(1f);
         if (uiElement != null) uiElement.SetActive(false);
     }
+
+private System.Collections.IEnumerator SendLightBulbData()
+{
+    while (isInLightBulbMode)
+    {
+        if (finalQuaternion != null)
+        {
+            Vector3 eulerAngles = finalQuaternion.eulerAngles;
+
+            // Normalize Y, add offset of +30, and label as Z
+            float adjustedZ = Mathf.Clamp((eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y) + 30, -45, 45);
+
+            // Create the data string
+            string dataToSend = $"LightBulb Data - Z:{adjustedZ:F2}";
+            Debug.Log(dataToSend);
+
+            if (serialPort != null && serialPort.IsOpen)
+            {
+                try
+                {
+                    serialPort.WriteLine(dataToSend);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to send Light Bulb data: {ex.Message}");
+                }
+            }
+        }
+        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
+    }
+}
+
 
 private System.Collections.IEnumerator SendIMUData()
 {
@@ -355,16 +495,44 @@ private System.Collections.IEnumerator SendIMUData()
         {
             Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            // Normalize X, Y, Z to the range -45 to 45
+            // Normalize X, Y to the range -45 to 45, Z is fixed to 0
             float adjustedX = Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45);
             float adjustedY = Mathf.Clamp(eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y, -45, 45);
-            float adjustedZ = Mathf.Clamp(eulerAngles.z > 180 ? eulerAngles.z - 360 : eulerAngles.z, -45, 45);
 
-            // Create the data string
-            string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:{adjustedZ:F2},L:0,B:1";
+            // Create the data string with Z fixed at 0
+            string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:0";
             Debug.Log($"IMU Data Sent: {dataToSend}");
 
-            // Send data via the same serial port used for receiving
+            // Send data via the serial port
+            if (serialPort != null && serialPort.IsOpen)
+            {
+                try
+                {
+                    serialPort.WriteLine(dataToSend);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to send data: {ex.Message}");
+                }
+            }
+        }
+        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
+    }
+}
+
+private System.Collections.IEnumerator SendZoomData()
+{
+    while (isInZoomMode)
+    {
+        if (finalQuaternion != null)
+        {
+            // Normalize Y, add offset of +30, and label as Z
+            float adjustedZ = Mathf.Clamp((finalQuaternion.eulerAngles.y > 180 ? finalQuaternion.eulerAngles.y - 360 : finalQuaternion.eulerAngles.y) + 30, -45, 45);
+
+            // Create the data string with Z label
+            string dataToSend = $"Z:{adjustedZ:F2}";
+            Debug.Log($"Zoom Data Sent: {dataToSend}");
+
             if (serialPort != null && serialPort.IsOpen)
             {
                 try
@@ -383,18 +551,25 @@ private System.Collections.IEnumerator SendIMUData()
 
 
 
-    private void ResetUI()
-    {
-        if (uiContainer != null) uiContainer.SetActive(false);
-        if (hoverUnlock != null) hoverUnlock.SetActive(false);
-        if (hoverCancel != null) hoverCancel.SetActive(false);
-        if (hoverLoupe != null) hoverLoupe.SetActive(false);
-        if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
-        if (confirmationUnlock != null) confirmationUnlock.SetActive(false);
-        if (confirmationCancel != null) confirmationCancel.SetActive(false);
-        if (confirmationLoupe != null) confirmationLoupe.SetActive(false);
-        if (confirmationLightBulb != null) confirmationLightBulb.SetActive(false);
-    }
+
+
+private void ResetUI()
+{
+    if (uiContainer != null) uiContainer.SetActive(false);
+    if (hoverUnlock != null) hoverUnlock.SetActive(false);
+    if (hoverCancel != null) hoverCancel.SetActive(false);
+    if (hoverLoupe != null) hoverLoupe.SetActive(false);
+    if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
+    if (confirmationUnlock != null) confirmationUnlock.SetActive(false);
+    if (confirmationCancel != null) confirmationCancel.SetActive(false);
+    if (confirmationLoupe != null) confirmationLoupe.SetActive(false);
+    if (confirmationLightBulb != null) confirmationLightBulb.SetActive(false);
+    if (preControlContainer != null) preControlContainer.SetActive(false);
+    if (preZoomContainer != null) preZoomContainer.SetActive(false);
+    if (preLightBulbContainer != null) preLightBulbContainer.SetActive(false); // Hide Light Bulb container initially
+}
+
+
 
     private void OnApplicationQuit()
     {
