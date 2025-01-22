@@ -18,8 +18,8 @@ public class UIController : MonoBehaviour
     private const uint canID2 = 0x515; // y, z
     public Quaternion finalQuaternion;
 
-    private Quaternion offsetQuaternion = Quaternion.identity; // Offset quaternion for resetting IMU
-    private bool isOffsetSet = false; // Flag to determine if the offset has been set
+    private Quaternion offsetQuaternion = Quaternion.identity;
+    private bool isOffsetSet = false;
 
     // Serial Port Variables
     private SerialPort serialPort;
@@ -31,9 +31,13 @@ public class UIController : MonoBehaviour
     private Thread serialThread;
     private bool isThreadRunning = false;
     private string serialData = null;
-    private bool isInZoomMode = false; // New Zoom Mode flag
-    private bool isInLightBulbMode = false; // New Light Bulb Mode flag
+    private bool isInZoomMode = false;
+    private bool isInLightBulbMode = false;
 
+    private int currentX = 0;
+    private int currentY = 0;
+    private int currentZ = 0;
+    private int currentL = 5;
 
     // UI Elements
     [Header("UI Elements")]
@@ -46,19 +50,17 @@ public class UIController : MonoBehaviour
     [Header("Confirmation UI")]
     public GameObject confirmationCancel;
 
-
     [Header("PreContainer")]
     public GameObject preControlContainer;
-    public GameObject preZoomContainer; // New pre-zoom container
-    public GameObject preLightBulbContainer; // New Light Bulb container
+    public GameObject preZoomContainer;
+    public GameObject preLightBulbContainer;
 
     [Header("Slider")]
-    public Slider zoomSlider; // Reference to the Slider component
-    public Slider lightSlider; // Reference to the Light Slider component
+    public Slider zoomSlider;
+    public Slider lightSlider;
 
-    private GameObject lastHoveredUI; // Tracks the last hovered UI element
-
-    private Coroutine imuDataCoroutine; // Coroutine for IMU data sending
+    private GameObject lastHoveredUI;
+    private Coroutine imuDataCoroutine;
 
     void Start()
     {
@@ -105,6 +107,11 @@ public class UIController : MonoBehaviour
         ResetUI();
         if (uiContainer != null) uiContainer.SetActive(false);
         if (preControlContainer != null) preControlContainer.SetActive(false);
+
+        currentX = 0;
+        currentY = 0;
+        currentZ = 0;
+        currentL = 5;
     }
 
     void Update()
@@ -301,30 +308,44 @@ private void HandleButtonInput()
         }
     }
 
-    private void UpdateUIBasedOnPCAN()
+private void UpdateUIBasedOnPCAN()
+{
+    if (finalQuaternion != null)
     {
-        if (finalQuaternion != null)
-        {
-            Vector3 eulerAngles = finalQuaternion.eulerAngles;
+        Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            if (eulerAngles.y >= 15 && eulerAngles.y <= 90)
-            {
-                ActivateSingleUIElement(hoverCancel);
-            }
-            else if (eulerAngles.z >= 30 && eulerAngles.z <= 90)
-            {
-                ActivateSingleUIElement(hoverLoupe);
-            }
-            else if (eulerAngles.z >= 270 && eulerAngles.z <= 330)
-            {
-                ActivateSingleUIElement(hoverLightBulb);
-            }
-            else
-            {
-                ActivateSingleUIElement(hoverUnlock);
-            }
+        // Extract raw X and Y angles
+        float rawX = eulerAngles.x;
+        float rawY = eulerAngles.y;
+
+        // Priority order for selection
+        if (rawY >= 330 && rawY <= 360) // Hover Cancel for Y between 330 and 360
+        {
+            ActivateSingleUIElement(hoverCancel);
+        }
+        else if (rawX >= 260 && rawX <= 355) // Hover Zoom for X between 260 and 345
+        {
+            ActivateSingleUIElement(hoverLightBulb); // Assuming hoverLoupe is the Zoom UI element
+        }
+        else if (rawX >= 5 && rawX <= 90) // Hover Light Bulb for X between 15 and 90
+        {
+            ActivateSingleUIElement(hoverLoupe); 
+        }
+        else if ((rawX > 345 && rawX <= 360) || (rawX >= 0 && rawX < 15)) // Hover Unlock for X between 345-360 and 0-15
+        {
+            ActivateSingleUIElement(hoverUnlock);
+        }
+        else // Fallback to hoverUnlock if no condition is satisfied
+        {
+            ActivateSingleUIElement(hoverUnlock);
         }
     }
+}
+
+
+
+
+
 
     private void ActivateSingleUIElement(GameObject uiElement)
     {
@@ -525,6 +546,25 @@ private void StopSendingZoomData()
     }
 }
 
+    private void SendSerialData()
+    {
+        string dataToSend = $"X{currentX},Y{currentY},Z{currentZ},L{currentL}";
+        Debug.Log($"Data Sent: {dataToSend}");
+
+        if (serialPort != null && serialPort.IsOpen)
+        {
+            try
+            {
+                serialPort.WriteLine(dataToSend);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"Failed to send data: {ex.Message}");
+            }
+        }
+    }
+
+
 
 
     private System.Collections.IEnumerator HideAfterDelay(GameObject uiElement)
@@ -542,63 +582,45 @@ private System.Collections.IEnumerator SendLightBulbData()
             // Extract Y angle from quaternion and normalize to range 0–360
             float rawAngle = finalQuaternion.eulerAngles.y;
 
-            // Adjust the raw angle by +30 degrees
-            rawAngle = (rawAngle + 30) % 360;
-
             float smoothValue; // Smooth floating-point value for slider
 
-            if (rawAngle >= 315 || rawAngle <= 45)
+            // Map angles to slider values
+            if (rawAngle >= 290 && rawAngle <= 335) // Smooth interpolation for 290° to 325°
             {
-                if (rawAngle >= 315)
-                {
-                    smoothValue = Mathf.Lerp(0, 5, (rawAngle - 315) / 45f); // Map 315° to 360° → 0 to 5
-                }
-                else // rawAngle <= 45
-                {
-                    smoothValue = Mathf.Lerp(5, 10, rawAngle / 45f); // Map 0° to 45° → 5 to 10
-                }
+                smoothValue = Mathf.Lerp(0, 10, (rawAngle - 290) / 45); // Map 290° to 325° → 0 to 10
             }
-            else if (rawAngle > 45 && rawAngle <= 179)
+            else if (rawAngle > 335 || rawAngle <= 179) // Clamp to max (10)
             {
-                smoothValue = 10; // Clamp to 10 for angles between 45° and 179°
+                smoothValue = 10;
             }
-            else if (rawAngle >= 180 && rawAngle < 315)
+            else if (rawAngle > 179 && rawAngle < 290) // Clamp to min (0)
             {
-                smoothValue = 0; // Clamp to 0 for angles between 315° and 180°
+                smoothValue = 0;
             }
             else
             {
-                smoothValue = 5; // Default fallback (shouldn't be reached)
+                // Safety net: Clamp to 5 (fallback, should not be reached)
+                smoothValue = 5;
             }
 
             // Update slider smoothly with the calculated value
             lightSlider.value = smoothValue;
 
-            // Convert smooth value to integer only for serial transmission
-            int integerValue = Mathf.RoundToInt(smoothValue);
+            // Convert smooth value to integer and update the shared `currentL`
+            currentL = Mathf.RoundToInt(smoothValue);
 
-            Debug.Log($"Light Slider Value (Smooth): {smoothValue:F2}, Sent Value (Integer): {integerValue}");
+            Debug.Log($"Light Slider Value (Smooth): {smoothValue:F2}, Sent Value (Integer): {currentL}");
 
-            // Send the integer value via serial
-            string dataToSend = $"X0,Y0,Z0,L{integerValue}";
-            Debug.Log($"Light Data Sent: {dataToSend}");
+            // Send the unified data string
+            SendSerialData();
 
-            if (serialPort != null && serialPort.IsOpen)
-            {
-                try
-                {
-                    serialPort.WriteLine(dataToSend);
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"Failed to send Light data: {ex.Message}");
-                }
-            }
+            yield return new WaitForSeconds(0.1f); // Update every 0.1 seconds
         }
-
-        yield return new WaitForSeconds(0.1f); // Update every 0.1 seconds
     }
 }
+
+
+
 
 
 
@@ -610,56 +632,54 @@ private System.Collections.IEnumerator SendIMUData()
         {
             Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            // Normalize X and convert to integer
-            int adjustedX = Mathf.RoundToInt(Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45));
-
-            // Process Y angle and convert to integer
-            float rawY = eulerAngles.y; // Get raw Y angle from quaternion
-            int adjustedY;
-
-            if (rawY >= 275 || rawY <= 5)
+            // Process X (337.5° to 22.5° → -45 to 45)
+            float rawX = eulerAngles.x;
+            if (rawX >= 337.5f || rawX <= 22.5f) // Map 337.5° to 22.5° → -45 to 45
             {
-                // Map 275°–5° linearly to 70–-70
-                if (rawY >= 275)
+                if (rawX >= 337.5f)
                 {
-                    adjustedY = Mathf.RoundToInt(Mathf.Lerp(-70, 20, (rawY - 275) / 85f)); // Normalize 275° to 360° range
+                    currentX = Mathf.RoundToInt(Mathf.Lerp(-45, 0, (rawX - 337.5f) / 22.5f)); // 337.5° to 360° → -45 to 0
                 }
-                else // rawY <= 5
+                else // rawX <= 22.5°
                 {
-                    adjustedY = Mathf.RoundToInt(Mathf.Lerp(-70, 20, (rawY + 360 - 275) / 85f)); // Normalize 0° to 5° wrapping to 360°
+                    currentX = Mathf.RoundToInt(Mathf.Lerp(0, 45, rawX / 22.5f)); // 0° to 22.5° → 0 to 45
                 }
             }
-            else if (rawY > 5 && rawY <= 180)
+            else if (rawX > 22.5f && rawX <= 180f) // Clamp to max (45)
             {
-                // Clamp between 5° and 180° to 20
-                adjustedY = 20;
+                currentX = 45;
             }
-            else
+            else if (rawX > 180f && rawX < 337.5f) // Clamp to min (-45)
             {
-                // Clamp between 180° and 275° to -70
-                adjustedY = -70;
+                currentX = -45;
             }
 
-            // Create the data string with Z fixed at 0 and L10 as an example
-            string dataToSend = $"X{adjustedX},Y{adjustedY},Z0,L10";
-            Debug.Log($"IMU Data Sent: {dataToSend}");
-
-            // Send data via the serial port
-            if (serialPort != null && serialPort.IsOpen)
+            // Process Y (300° to 330° → -45 to 45)
+            float rawY = eulerAngles.y;
+            if (rawY >= 300f && rawY <= 330f) // Map 300° to 330° → -45 to 45
             {
-                try
-                {
-                    serialPort.WriteLine(dataToSend);
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogWarning($"Failed to send data: {ex.Message}");
-                }
+                currentY = Mathf.RoundToInt(Mathf.Lerp(-45, 45, (rawY - 300f) / 30f));
             }
+            else if (rawY > 330f || rawY <= 180f) // Clamp to max (45)
+            {
+                currentY = 45;
+            }
+            else if (rawY > 180f && rawY < 300f) // Clamp to min (-45)
+            {
+                currentY = -45;
+            }
+
+            // Send the unified data string
+            SendSerialData();
+
+            yield return new WaitForSeconds(0.1f); // Delay before next update
         }
-        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
     }
 }
+
+
+
+
 
 
 private System.Collections.IEnumerator SendZoomData()
@@ -671,61 +691,45 @@ private System.Collections.IEnumerator SendZoomData()
             // Extract Y angle from quaternion and normalize to range 0–360
             float rawAngle = finalQuaternion.eulerAngles.y;
 
-            // Adjust the raw angle by +30 degrees
-            rawAngle = (rawAngle + 30) % 360;
-
             float normalizedValue;
 
-            if (rawAngle >= 315 || rawAngle <= 45) // Smooth interpolation
+            // Calculate the normalized zoom value based on the adjusted angle
+            if (rawAngle >= 290 && rawAngle <= 335) // Interpolation for range 290° to 335°
             {
-                if (rawAngle >= 315)
-                {
-                    normalizedValue = Mathf.Lerp(-10, 0, (rawAngle - 315) / 45); // Map 315° to 360° to -10 → 0
-                }
-                else // rawAngle <= 45
-                {
-                    normalizedValue = Mathf.Lerp(0, 10, rawAngle / 45); // Map 0° to 45° to 0 → 10
-                }
+                normalizedValue = Mathf.Lerp(-35, 65, (rawAngle - 290) / 45); // Map 290° to 335° → -35 to 65
             }
-            else if (rawAngle > 45 && rawAngle <= 179) // Clamp to max (+10)
+            else if (rawAngle > 335 || rawAngle <= 179) // Clamp values for angles outside interpolation range
             {
-                normalizedValue = 10;
+                normalizedValue = 65; // Clamp to max (+65) for angles 335°-360° and 0°-179°
             }
-            else if (rawAngle >= 180 && rawAngle < 315) // Clamp to min (-10)
+            else if (rawAngle > 179 && rawAngle < 290) // Clamp to min (-35) for angles 180°-289°
             {
-                normalizedValue = -10;
+                normalizedValue = -35;
             }
             else
             {
-                // Safety net: Clamp to 0
+                // Safety net: Clamp to 0 (should not be reached in normal conditions)
                 normalizedValue = 0;
             }
 
-            // Update slider value
+            // Update the slider value
             zoomSlider.value = normalizedValue;
 
-            Debug.Log($"Slider Value Updated: {normalizedValue:F2}");
+            // Convert the normalized value to an integer for `currentZ`
+            currentZ = Mathf.RoundToInt(normalizedValue);
 
-            // Send this value via serial
-            string dataToSend = $"Z:{normalizedValue:F2}";
-            Debug.Log($"Data Sent: {dataToSend}");
+            Debug.Log($"Zoom Slider Value Updated: {normalizedValue:F2}, Current Z Value: {currentZ}");
 
-            if (serialPort != null && serialPort.IsOpen)
-            {
-                try
-                {
-                    serialPort.WriteLine(dataToSend);
-                }
-                catch (System.Exception ex)
-                {
-                    Debug.LogWarning($"Failed to send Zoom data: {ex.Message}");
-                }
-            }
+            // Send the unified serial data string
+            SendSerialData();
+
+            // Wait before the next update
+            yield return new WaitForSeconds(0.1f);
         }
-
-        yield return new WaitForSeconds(0.1f); // Update every 0.1 seconds
     }
 }
+
+
 
 
 
