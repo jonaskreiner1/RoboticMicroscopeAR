@@ -3,6 +3,7 @@ using System.IO.Ports;
 using System.Threading;
 using UnityEngine;
 using Peak.Can.Basic;
+using UnityEngine.UI;
 
 public class UIController : MonoBehaviour
 {
@@ -53,6 +54,9 @@ public class UIController : MonoBehaviour
     public GameObject preZoomContainer; // New pre-zoom container
     public GameObject preLightBulbContainer; // New Light Bulb container
 
+    [Header("Slider")]
+    public Slider zoomSlider; // Reference to the Slider component
+    public Slider lightSlider; // Reference to the Light Slider component
 
     private GameObject lastHoveredUI; // Tracks the last hovered UI element
 
@@ -88,6 +92,17 @@ public class UIController : MonoBehaviour
         serialThread = new Thread(ReadSerial);
         serialThread.Start();
 
+         if (zoomSlider != null)
+        {
+            zoomSlider.value = 0; // Start at the default value
+            zoomSlider.gameObject.SetActive(false); // Hide initially
+        }
+
+        if (lightSlider != null)
+        {
+            lightSlider.value = 0; // Start at the default value
+            lightSlider.gameObject.SetActive(false); // Hide initially
+        }
         // Ensure UI is initially hidden
         ResetUI();
         if (uiContainer != null) uiContainer.SetActive(false);
@@ -364,89 +379,135 @@ private void HandleUISelection()
 
 private void EnterZoomMode()
 {
-    if (hoverLoupe.activeSelf)
+    if (zoomSlider != null)
     {
-        Debug.Log("Zoom Mode Triggered.");
+        Debug.Log("Entering Zoom Mode...");
         isInZoomMode = true;
 
+        // Activate the preZoomContainer
         if (preZoomContainer != null)
-            preZoomContainer.SetActive(true); // Show pre-zoom container
+        {
+            preZoomContainer.SetActive(true);
+        }
 
-        HideUI(); // Hide the main UI container
+        // Show slider
+        zoomSlider.gameObject.SetActive(true);
+        zoomSlider.value = 0; // Reset the slider value to the center
+    }
+}
+
+
+private void ExitZoomMode()
+{
+    if (zoomSlider != null)
+    {
+        Debug.Log("Exiting Zoom Mode...");
+        isInZoomMode = false;
+
+        // Start a coroutine to hide the slider after 2 seconds
+        StartCoroutine(HideZoomSliderAfterDelay());
+    }
+}
+private void EnterLightBulbMode()
+{
+    if (hoverLightBulb.activeSelf)
+    {
+        Debug.Log("Entering Light Bulb Mode...");
+        isInLightBulbMode = true;
+
+        // Activate the preLightBulbContainer
+        if (preLightBulbContainer != null)
+        {
+            preLightBulbContainer.SetActive(true);
+        }
+
+        // Show the light slider
+        if (lightSlider != null)
+        {
+            lightSlider.gameObject.SetActive(true);
+            lightSlider.value = 0; // Reset the slider to the center
+        }
+
+        HideUI();
     }
     else
     {
         TriggerConfirmation(lastHoveredUI);
     }
 }
+private void ExitLightBulbMode()
+{
+    Debug.Log("Exiting Light Bulb Mode...");
+    isInLightBulbMode = false;
 
+    // Start a coroutine to hide the slider after 2 seconds
+    StartCoroutine(HideLightSliderAfterDelay());
+}
 
-    private void ExitZoomMode()
+private System.Collections.IEnumerator HideLightSliderAfterDelay()
+{
+    yield return new WaitForSeconds(2f); // Wait for 2 seconds
+    if (lightSlider != null)
     {
-        Debug.Log("Exiting Zoom Mode...");
-        isInZoomMode = false;
-        preZoomContainer.SetActive(false); // Hide pre-zoom container
-    }
-    private void StartSendingZoomData()
-    {
-        if (imuDataCoroutine == null)
-        {
-            imuDataCoroutine = StartCoroutine(SendZoomData());
-        }
-    }
-
-    private void StopSendingZoomData()
-    {
-        if (imuDataCoroutine != null)
-        {
-            StopCoroutine(imuDataCoroutine);
-            imuDataCoroutine = null;
-        }
+        lightSlider.gameObject.SetActive(false); // Hide the slider
     }
 
-    private void EnterLightBulbMode()
+    // Deactivate the preLightBulbContainer
+    if (preLightBulbContainer != null)
     {
-        if (hoverLightBulb.activeSelf)
-        {
-            Debug.Log("Light Bulb Mode Triggered.");
-            isInLightBulbMode = true; // Activate Light Bulb Mode
-            if (preLightBulbContainer != null)
-                preLightBulbContainer.SetActive(true); // Show Light Bulb container
+        preLightBulbContainer.SetActive(false);
+    }
+}
+private void StartSendingLightBulbData()
+{
+    if (imuDataCoroutine == null)
+    {
+        imuDataCoroutine = StartCoroutine(SendLightBulbData());
+    }
+}
 
-            HideUI(); // Hide the main UI container
-        }
-        else
-        {
-            TriggerConfirmation(lastHoveredUI);
-        }
+private void StopSendingLightBulbData()
+{
+    if (imuDataCoroutine != null)
+    {
+        StopCoroutine(imuDataCoroutine);
+        imuDataCoroutine = null;
+    }
+}
+
+private System.Collections.IEnumerator HideZoomSliderAfterDelay()
+{
+    yield return new WaitForSeconds(2f); // Wait for 2 seconds
+    if (zoomSlider != null)
+    {
+        zoomSlider.gameObject.SetActive(false); // Hide the slider
     }
 
-    private void ExitLightBulbMode()
+    // Deactivate the preZoomContainer
+    if (preZoomContainer != null)
     {
-        Debug.Log("Exiting Light Bulb Mode...");
-        isInLightBulbMode = false; // Deactivate Light Bulb Mode
-        if (preLightBulbContainer != null)
-            preLightBulbContainer.SetActive(false); // Hide Light Bulb container
+        preZoomContainer.SetActive(false);
     }
+}
 
 
 
-    private void StartSendingLightBulbData()
+private void StartSendingZoomData()
+{
+    if (imuDataCoroutine == null)
     {
-        if (imuDataCoroutine == null)
-        {
-            imuDataCoroutine = StartCoroutine(SendLightBulbData());
-        }
+        imuDataCoroutine = StartCoroutine(SendZoomData());
     }
-
-    private void StopSendingLightBulbData()
+}
+private void StopSendingZoomData()
+{
+    if (imuDataCoroutine != null)
     {
-        if (imuDataCoroutine != null)
-        {
-            StopCoroutine(imuDataCoroutine);
-            imuDataCoroutine = null;
-        }
+        StopCoroutine(imuDataCoroutine);
+        imuDataCoroutine = null;
     }
+}
+
 
 
     private System.Collections.IEnumerator HideAfterDelay(GameObject uiElement)
@@ -459,16 +520,49 @@ private System.Collections.IEnumerator SendLightBulbData()
 {
     while (isInLightBulbMode)
     {
-        if (finalQuaternion != null)
+        if (finalQuaternion != null && lightSlider != null)
         {
-            Vector3 eulerAngles = finalQuaternion.eulerAngles;
+            // Extract Y angle from quaternion and normalize to range 0–360
+            float rawAngle = finalQuaternion.eulerAngles.y;
 
-            // Normalize Y, add offset of +30, and label as Z
-            float adjustedZ = Mathf.Clamp((eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y) + 30, -45, 45);
+            // Adjust the raw angle by +30 degrees
+            rawAngle = (rawAngle + 30) % 360;
 
-            // Create the data string
-            string dataToSend = $"LightBulb Data - Z:{adjustedZ:F2}";
-            Debug.Log(dataToSend);
+            float normalizedValue;
+
+            if (rawAngle >= 315 || rawAngle <= 45) // Smooth interpolation
+            {
+                if (rawAngle >= 315)
+                {
+                    normalizedValue = Mathf.Lerp(-10, 0, (rawAngle - 315) / 45); // Map 315° to 360° to -10 → 0
+                }
+                else // rawAngle <= 45
+                {
+                    normalizedValue = Mathf.Lerp(0, 10, rawAngle / 45); // Map 0° to 45° to 0 → 10
+                }
+            }
+            else if (rawAngle > 45 && rawAngle <= 179) // Clamp to max (+10)
+            {
+                normalizedValue = 10;
+            }
+            else if (rawAngle >= 180 && rawAngle < 315) // Clamp to min (-10)
+            {
+                normalizedValue = -10;
+            }
+            else
+            {
+                // Safety net: Clamp to 0
+                normalizedValue = 0;
+            }
+
+            // Update slider value
+            lightSlider.value = normalizedValue;
+
+            Debug.Log($"Light Slider Value Updated: {normalizedValue:F2}");
+
+            // Send this value via serial
+            string dataToSend = $"Z:{normalizedValue:F2}";
+            Debug.Log($"Light Data Sent: {dataToSend}");
 
             if (serialPort != null && serialPort.IsOpen)
             {
@@ -476,15 +570,17 @@ private System.Collections.IEnumerator SendLightBulbData()
                 {
                     serialPort.WriteLine(dataToSend);
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"Failed to send Light Bulb data: {ex.Message}");
+                    Debug.LogWarning($"Failed to send Light data: {ex.Message}");
                 }
             }
         }
-        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
+
+        yield return new WaitForSeconds(0.1f); // Update every 0.1 seconds
     }
 }
+
 
 
 private System.Collections.IEnumerator SendIMUData()
@@ -524,14 +620,49 @@ private System.Collections.IEnumerator SendZoomData()
 {
     while (isInZoomMode)
     {
-        if (finalQuaternion != null)
+        if (finalQuaternion != null && zoomSlider != null)
         {
-            // Normalize Y, add offset of +30, and label as Z
-            float adjustedZ = Mathf.Clamp((finalQuaternion.eulerAngles.y > 180 ? finalQuaternion.eulerAngles.y - 360 : finalQuaternion.eulerAngles.y) + 30, -45, 45);
+            // Extract Y angle from quaternion and normalize to range 0–360
+            float rawAngle = finalQuaternion.eulerAngles.y;
 
-            // Create the data string with Z label
-            string dataToSend = $"Z:{adjustedZ:F2}";
-            Debug.Log($"Zoom Data Sent: {dataToSend}");
+            // Adjust the raw angle by +30 degrees
+            rawAngle = (rawAngle + 30) % 360;
+
+            float normalizedValue;
+
+            if (rawAngle >= 315 || rawAngle <= 45) // Smooth interpolation
+            {
+                if (rawAngle >= 315)
+                {
+                    normalizedValue = Mathf.Lerp(-10, 0, (rawAngle - 315) / 45); // Map 315° to 360° to -10 → 0
+                }
+                else // rawAngle <= 45
+                {
+                    normalizedValue = Mathf.Lerp(0, 10, rawAngle / 45); // Map 0° to 45° to 0 → 10
+                }
+            }
+            else if (rawAngle > 45 && rawAngle <= 179) // Clamp to max (+10)
+            {
+                normalizedValue = 10;
+            }
+            else if (rawAngle >= 180 && rawAngle < 315) // Clamp to min (-10)
+            {
+                normalizedValue = -10;
+            }
+            else
+            {
+                // Safety net: Clamp to 0
+                normalizedValue = 0;
+            }
+
+            // Update slider value
+            zoomSlider.value = normalizedValue;
+
+            Debug.Log($"Slider Value Updated: {normalizedValue:F2}");
+
+            // Send this value via serial
+            string dataToSend = $"Z:{normalizedValue:F2}";
+            Debug.Log($"Data Sent: {dataToSend}");
 
             if (serialPort != null && serialPort.IsOpen)
             {
@@ -539,15 +670,20 @@ private System.Collections.IEnumerator SendZoomData()
                 {
                     serialPort.WriteLine(dataToSend);
                 }
-                catch (Exception ex)
+                catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"Failed to send data: {ex.Message}");
+                    Debug.LogWarning($"Failed to send Zoom data: {ex.Message}");
                 }
             }
         }
-        yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
+
+        yield return new WaitForSeconds(0.1f); // Update every 0.1 seconds
     }
 }
+
+
+
+
 
 
 
