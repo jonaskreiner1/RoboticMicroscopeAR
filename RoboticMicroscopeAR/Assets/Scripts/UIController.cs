@@ -545,40 +545,42 @@ private System.Collections.IEnumerator SendLightBulbData()
             // Adjust the raw angle by +30 degrees
             rawAngle = (rawAngle + 30) % 360;
 
-            float normalizedValue;
+            float smoothValue; // Smooth floating-point value for slider
 
-            if (rawAngle >= 315 || rawAngle <= 45) // Smooth interpolation
+            if (rawAngle >= 315 || rawAngle <= 45)
             {
                 if (rawAngle >= 315)
                 {
-                    normalizedValue = Mathf.Lerp(-10, 0, (rawAngle - 315) / 45); // Map 315° to 360° to -10 → 0
+                    smoothValue = Mathf.Lerp(0, 5, (rawAngle - 315) / 45f); // Map 315° to 360° → 0 to 5
                 }
                 else // rawAngle <= 45
                 {
-                    normalizedValue = Mathf.Lerp(0, 10, rawAngle / 45); // Map 0° to 45° to 0 → 10
+                    smoothValue = Mathf.Lerp(5, 10, rawAngle / 45f); // Map 0° to 45° → 5 to 10
                 }
             }
-            else if (rawAngle > 45 && rawAngle <= 179) // Clamp to max (+10)
+            else if (rawAngle > 45 && rawAngle <= 179)
             {
-                normalizedValue = 10;
+                smoothValue = 10; // Clamp to 10 for angles between 45° and 179°
             }
-            else if (rawAngle >= 180 && rawAngle < 315) // Clamp to min (-10)
+            else if (rawAngle >= 180 && rawAngle < 315)
             {
-                normalizedValue = -10;
+                smoothValue = 0; // Clamp to 0 for angles between 315° and 180°
             }
             else
             {
-                // Safety net: Clamp to 0
-                normalizedValue = 0;
+                smoothValue = 5; // Default fallback (shouldn't be reached)
             }
 
-            // Update slider value
-            lightSlider.value = normalizedValue;
+            // Update slider smoothly with the calculated value
+            lightSlider.value = smoothValue;
 
-            Debug.Log($"Light Slider Value Updated: {normalizedValue:F2}");
+            // Convert smooth value to integer only for serial transmission
+            int integerValue = Mathf.RoundToInt(smoothValue);
 
-            // Send this value via serial
-            string dataToSend = $"Z:{normalizedValue:F2}";
+            Debug.Log($"Light Slider Value (Smooth): {smoothValue:F2}, Sent Value (Integer): {integerValue}");
+
+            // Send the integer value via serial
+            string dataToSend = $"X0,Y0,Z0,L{integerValue}";
             Debug.Log($"Light Data Sent: {dataToSend}");
 
             if (serialPort != null && serialPort.IsOpen)
@@ -608,12 +610,38 @@ private System.Collections.IEnumerator SendIMUData()
         {
             Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            // Normalize X, add 30-degree offset to Y, Z is fixed to 0
-            float adjustedX = Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45);
-            float adjustedY = Mathf.Clamp((eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y) + 40, -45, 45);
+            // Normalize X and convert to integer
+            int adjustedX = Mathf.RoundToInt(Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45));
 
-            // Create the data string with Z fixed at 0
-            string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:0";
+            // Process Y angle and convert to integer
+            float rawY = eulerAngles.y; // Get raw Y angle from quaternion
+            int adjustedY;
+
+            if (rawY >= 275 || rawY <= 5)
+            {
+                // Map 275°–5° linearly to 70–-70
+                if (rawY >= 275)
+                {
+                    adjustedY = Mathf.RoundToInt(Mathf.Lerp(-70, 20, (rawY - 275) / 85f)); // Normalize 275° to 360° range
+                }
+                else // rawY <= 5
+                {
+                    adjustedY = Mathf.RoundToInt(Mathf.Lerp(-70, 20, (rawY + 360 - 275) / 85f)); // Normalize 0° to 5° wrapping to 360°
+                }
+            }
+            else if (rawY > 5 && rawY <= 180)
+            {
+                // Clamp between 5° and 180° to 20
+                adjustedY = 20;
+            }
+            else
+            {
+                // Clamp between 180° and 275° to -70
+                adjustedY = -70;
+            }
+
+            // Create the data string with Z fixed at 0 and L10 as an example
+            string dataToSend = $"X{adjustedX},Y{adjustedY},Z0,L10";
             Debug.Log($"IMU Data Sent: {dataToSend}");
 
             // Send data via the serial port
