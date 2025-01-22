@@ -44,10 +44,8 @@ public class UIController : MonoBehaviour
     public GameObject uiContainer;
 
     [Header("Confirmation UI")]
-    public GameObject confirmationUnlock;
     public GameObject confirmationCancel;
-    public GameObject confirmationLoupe;
-    public GameObject confirmationLightBulb;
+
 
     [Header("PreContainer")]
     public GameObject preControlContainer;
@@ -345,15 +343,33 @@ private void HandleButtonInput()
         if (hoverLoupe != null) hoverLoupe.SetActive(false);
         if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
     }
-
-    private void TriggerConfirmation(GameObject confirmationElement)
+private void TriggerConfirmation(GameObject confirmationElement)
+{
+    if (confirmationElement != null)
     {
-        if (confirmationElement != null)
+        Debug.Log($"Triggering confirmation for: {confirmationElement.name}");
+
+        // Ensure all parents are active
+        Transform parent = confirmationElement.transform.parent;
+        while (parent != null)
         {
-            confirmationElement.SetActive(true);
-            StartCoroutine(HideAfterDelay(confirmationElement));
+            if (!parent.gameObject.activeSelf)
+            {
+                Debug.LogWarning($"Parent object '{parent.name}' is inactive. Activating it.");
+                parent.gameObject.SetActive(true);
+            }
+            parent = parent.parent;
         }
+
+        confirmationElement.SetActive(true); // Activate the confirmation element itself
+        StartCoroutine(HideAfterDelay(confirmationElement)); // Hide it after a delay
     }
+    else
+    {
+        Debug.LogWarning("No confirmation element provided!");
+    }
+}
+
 
 private void HandleUISelection()
 {
@@ -372,9 +388,10 @@ private void HandleUISelection()
     else if (lastHoveredUI == hoverCancel)
     {
         Debug.Log("Cancel Action Triggered.");
-        TriggerConfirmation(confirmationCancel);
+        TriggerConfirmation(confirmationCancel); // Show confirmationCancel when cancel is hovered
     }
 }
+
 
 
 private void EnterZoomMode()
@@ -591,9 +608,9 @@ private System.Collections.IEnumerator SendIMUData()
         {
             Vector3 eulerAngles = finalQuaternion.eulerAngles;
 
-            // Normalize X, Y to the range -45 to 45, Z is fixed to 0
+            // Normalize X, add 30-degree offset to Y, Z is fixed to 0
             float adjustedX = Mathf.Clamp(eulerAngles.x > 180 ? eulerAngles.x - 360 : eulerAngles.x, -45, 45);
-            float adjustedY = Mathf.Clamp(eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y, -45, 45);
+            float adjustedY = Mathf.Clamp((eulerAngles.y > 180 ? eulerAngles.y - 360 : eulerAngles.y) + 40, -45, 45);
 
             // Create the data string with Z fixed at 0
             string dataToSend = $"X:{adjustedX:F2},Y:{adjustedY:F2},Z:0";
@@ -615,6 +632,7 @@ private System.Collections.IEnumerator SendIMUData()
         yield return new WaitForSeconds(0.1f); // Send data every 0.1 seconds
     }
 }
+
 
 private System.Collections.IEnumerator SendZoomData()
 {
@@ -696,13 +714,11 @@ private void ResetUI()
     if (hoverCancel != null) hoverCancel.SetActive(false);
     if (hoverLoupe != null) hoverLoupe.SetActive(false);
     if (hoverLightBulb != null) hoverLightBulb.SetActive(false);
-    if (confirmationUnlock != null) confirmationUnlock.SetActive(false);
-    if (confirmationCancel != null) confirmationCancel.SetActive(false);
-    if (confirmationLoupe != null) confirmationLoupe.SetActive(false);
-    if (confirmationLightBulb != null) confirmationLightBulb.SetActive(false);
+
+    if (confirmationCancel != null) confirmationCancel.SetActive(false); // Only retain this confirmation
     if (preControlContainer != null) preControlContainer.SetActive(false);
     if (preZoomContainer != null) preZoomContainer.SetActive(false);
-    if (preLightBulbContainer != null) preLightBulbContainer.SetActive(false); // Hide Light Bulb container initially
+    if (preLightBulbContainer != null) preLightBulbContainer.SetActive(false);
 }
 
 
