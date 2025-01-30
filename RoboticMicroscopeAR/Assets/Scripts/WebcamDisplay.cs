@@ -37,6 +37,11 @@ public class WebcamDisplay : MonoBehaviour
 
     void OnValidate()
     {
+        if (!Application.isPlaying)
+        {
+            return; // Only validate in editor mode
+        }
+
         devices = WebCamTexture.devices;
 
         if (devices.Length > 0 && string.IsNullOrEmpty(selectedWebcamName))
@@ -44,20 +49,23 @@ public class WebcamDisplay : MonoBehaviour
             selectedWebcamName = devices[0].name;
         }
 
-        if (!Application.isPlaying)
-        {
-            UpdateWebcamTexture();
-        }
+        UpdateWebcamTexture();
     }
 
     void Start()
     {
-        InitializeWebcam();
+        if (Application.isPlaying) // Only initialize when in play mode
+        {
+            InitializeWebcam();
+        }
     }
 
     public void UpdateWebcamTexture()
     {
-        InitializeWebcam();
+        if (Application.isPlaying) // Only update in play mode
+        {
+            InitializeWebcam();
+        }
     }
 
     void InitializeWebcam()
@@ -123,7 +131,7 @@ public class WebcamDisplay : MonoBehaviour
 
     void OnDisable()
     {
-        if (webcamTexture != null)
+        if (Application.isPlaying && webcamTexture != null) // Only stop webcam in play mode
         {
             webcamTexture.Stop();
         }

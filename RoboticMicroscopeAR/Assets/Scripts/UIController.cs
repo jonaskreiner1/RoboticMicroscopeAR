@@ -58,6 +58,12 @@ public class UIController : MonoBehaviour
     [Header("Slider")]
     public Slider zoomSlider;
     public Slider lightSlider;
+    public Light directionalLight; // Drag and drop your DirectionalLight here in the Inspector
+
+    [Header("Background Sprite")]
+    public SpriteRenderer pahBackgroundSprite; // Assign this in the Inspector
+
+
 
     private GameObject lastHoveredUI;
     private Coroutine imuDataCoroutine;
@@ -235,6 +241,12 @@ private void HandleButtonInput()
     {
         if (imuDataCoroutine == null)
         {
+            // Change the color of PaHbackground to a softer, transparent red
+            if (pahBackgroundSprite != null)
+            {
+                pahBackgroundSprite.color = new Color32(255, 102, 102, 178); // Softer red with 70% transparency
+            }
+
             imuDataCoroutine = StartCoroutine(SendIMUData());
         }
     }
@@ -245,6 +257,12 @@ private void HandleButtonInput()
         {
             StopCoroutine(imuDataCoroutine);
             imuDataCoroutine = null;
+        }
+
+        // Reset the color of PaHbackground to white with 70% transparency
+        if (pahBackgroundSprite != null)
+        {
+            pahBackgroundSprite.color = new Color32(255, 255, 255, 178); // White with 70% transparency
         }
     }
 
@@ -605,8 +623,11 @@ private System.Collections.IEnumerator SendLightBulbData()
 
             // Update slider smoothly with the calculated value
             lightSlider.value = smoothValue;
+            float intensity = Mathf.Clamp01((lightSlider.value - 1) * 0.1f);
 
-            // Convert smooth value to integer and update the shared `currentL`
+            // Set the intensity of the directional light
+            directionalLight.intensity = intensity;
+                // Convert smooth value to integer and update the shared `currentL`
             currentL = Mathf.RoundToInt(smoothValue);
 
             Debug.Log($"Light Slider Value (Smooth): {smoothValue:F2}, Sent Value (Integer): {currentL}");
@@ -624,65 +645,81 @@ private System.Collections.IEnumerator SendLightBulbData()
 
 
 
-private System.Collections.IEnumerator SendIMUData()
-{
-    while (isInUnlockMode)
+    private System.Collections.IEnumerator SendIMUData()
     {
-        if (finalQuaternion != null)
+        // Ensure the SpriteRenderer is assigned
+        if (pahBackgroundSprite != null)
         {
-            Vector3 eulerAngles = finalQuaternion.eulerAngles;
+            // Set the background color to a softer, transparent red
+            pahBackgroundSprite.color = new Color32(255, 102, 102, 178); // Softer red with 70% transparency
+            Debug.Log($"Color set to transparent red: {pahBackgroundSprite.color}");
+        }
 
-            // Process X (337.5° to 22.5° → -45 to 45)
-            float rawX = eulerAngles.x;
-            if (rawX >= 337.5f || rawX <= 22.5f) // Map 337.5° to 22.5° → -45 to 45
+        while (isInUnlockMode)
+        {
+            if (finalQuaternion != null)
             {
-                if (rawX >= 337.5f)
+                Vector3 eulerAngles = finalQuaternion.eulerAngles;
+
+                // Process X (337.5° to 22.5° → -45 to 45)
+                float rawX = eulerAngles.x;
+                if (rawX >= 337.5f || rawX <= 22.5f)
                 {
-                    currentX = Mathf.RoundToInt(Mathf.Lerp(-45, 0, (rawX - 337.5f) / 22.5f)); // 337.5° to 360° → -45 to 0
+                    if (rawX >= 337.5f)
+                    {
+                        currentX = Mathf.RoundToInt(Mathf.Lerp(45, 0, (rawX - 337.5f) / 22.5f)); // 337.5° to 360° → 45 to 0
+                    }
+                    else // rawX <= 22.5°
+                    {
+                        currentX = Mathf.RoundToInt(Mathf.Lerp(0, -45, rawX / 22.5f)); // 0° to 22.5° → 0 to -45
+                    }
                 }
-                else // rawX <= 22.5°
+                else if (rawX > 22.5f && rawX <= 180f)
                 {
-                    currentX = Mathf.RoundToInt(Mathf.Lerp(0, 45, rawX / 22.5f)); // 0° to 22.5° → 0 to 45
+                    currentX = -45;
                 }
-            }
-            else if (rawX > 22.5f && rawX <= 180f) // Clamp to max (45)
-            {
-                currentX = 45;
-            }
-            else if (rawX > 180f && rawX < 337.5f) // Clamp to min (-45)
-            {
-                currentX = -45;
-            }
+                else if (rawX > 180f && rawX < 337.5f)
+                {
+                    currentX = 45;
+                }
 
-            // Process Y (300° to 330° → -45 to 45)
-            float rawY = eulerAngles.y;
-            if (rawY >= 300f && rawY <= 330f) // Map 300° to 330° → -45 to 45
-            {
-                currentY = Mathf.RoundToInt(Mathf.Lerp(-45, 45, (rawY - 300f) / 30f));
-            }
-            else if (rawY > 330f || rawY <= 180f) // Clamp to max (45)
-            {
-                currentY = 45;
-            }
-            else if (rawY > 180f && rawY < 300f) // Clamp to min (-45)
-            {
-                currentY = -45;
-            }
+                // Process Y (300° to 330° → -20 to 70)
+                float rawY = eulerAngles.y;
+                if (rawY >= 300f && rawY <= 330f) // Map 300° to 330° → -20 to 70
+                {
+                    currentY = Mathf.RoundToInt(Mathf.Lerp(-20, 70, (rawY - 300f) / 30f));
+                }
+                else if (rawY > 330f || rawY <= 180f) // Clamp to max (70)
+                {
+                    currentY = 70;
+                }
+                else if (rawY > 180f && rawY < 300f) // Clamp to min (-20)
+                {
+                    currentY = -20;
+                }
 
-            // Send the unified data string
-            SendSerialData();
+                // Send the unified data string
+                SendSerialData();
 
-            yield return new WaitForSeconds(0.1f); // Delay before next update
+                yield return new WaitForSeconds(0.1f); // Delay before next update
+            }
+        }
+
+        if (pahBackgroundSprite != null)
+        {
+            // Reset the background color to white with 70% transparency when exiting the mode
+            pahBackgroundSprite.color = new Color32(255, 255, 255, 178); // White with 70% transparency
+            Debug.Log($"Color reset to transparent white: {pahBackgroundSprite.color}");
         }
     }
-}
 
 
 
 
 
 
-private System.Collections.IEnumerator SendZoomData()
+
+    private System.Collections.IEnumerator SendZoomData()
 {
     while (isInZoomMode)
     {
