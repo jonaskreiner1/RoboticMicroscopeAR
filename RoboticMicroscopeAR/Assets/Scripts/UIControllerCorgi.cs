@@ -5,7 +5,7 @@ using UnityEngine;
 using Peak.Can.Basic;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-public class UIController : MonoBehaviour
+public class UIControllerCorgi : MonoBehaviour
 {
     // PCAN Variables
     TPCANMsg msg;
@@ -63,6 +63,11 @@ public class UIController : MonoBehaviour
     [Header("Background Sprite")]
     public SpriteRenderer pahBackgroundSprite; // Assign this in the Inspector
 
+    [Header("Container to Remove")]
+    public GameObject containerToRemove; // Assign in Inspector
+
+    [Header("Removal Delay (Seconds)")]
+    public float removalDelay = 10f; // Set time in Inspector
 
 
     private GameObject lastHoveredUI;
@@ -129,6 +134,15 @@ public class UIController : MonoBehaviour
         currentY = 0;
         currentZ = 0;
         currentL = 5;
+
+        if (containerToRemove != null)
+        {
+            StartCoroutine(RemoveAfterDelay());
+        }
+        else
+        {
+            Debug.LogWarning("No container assigned to remove!");
+        }
     }
 
 
@@ -143,7 +157,16 @@ public class UIController : MonoBehaviour
         }
     }
 
+    private System.Collections.IEnumerator RemoveAfterDelay()
+    {
+        yield return new WaitForSeconds(removalDelay);
 
+        if (containerToRemove != null)
+        {
+            Debug.Log($"Removing container: {containerToRemove.name} after {removalDelay} seconds");
+            Destroy(containerToRemove); // Removes the GameObject
+        }
+    }
     private void HandleButtonInput()
 {
     if (!string.IsNullOrEmpty(serialData))

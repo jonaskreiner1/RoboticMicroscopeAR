@@ -5,10 +5,11 @@ using UnityEngine;
 using Peak.Can.Basic;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement; // Required for scene loading
-public class UIControllerLight : MonoBehaviour
+public class UIControllerZoom : MonoBehaviour
 {
     // PCAN Variables
     TPCANMsg msg;
+
     TPCANStatus status;
     System.UInt16 deviceHandle;
     TPCANTimestamp timeStamp;
@@ -72,6 +73,16 @@ public class UIControllerLight : MonoBehaviour
 
     void Start()
     {
+        // Ensure the script only runs in its assigned scene
+        if (SceneManager.GetActiveScene().name != gameObject.scene.name)
+        {
+            Debug.Log($"[{gameObject.name}] is disabled because it's not in the active scene: {SceneManager.GetActiveScene().name}");
+            enabled = false;
+            return; // Stop execution of Start()
+        }
+
+        Debug.Log($"[{gameObject.name}] is running in scene: {SceneManager.GetActiveScene().name}");
+
         // Initialize PCAN
         deviceHandle = PCANBasic.PCAN_USBBUS1;
         status = PCANBasic.Initialize(deviceHandle, TPCANBaudrate.PCAN_BAUD_125K);
@@ -92,6 +103,7 @@ public class UIControllerLight : MonoBehaviour
         }
         catch (System.Exception e)
         {
+            Debug.LogWarning($"Failed to open serial port {comPort}: {e.Message}. Switching to keyboard input.");
         }
 
         // Start serial reading thread
@@ -110,6 +122,7 @@ public class UIControllerLight : MonoBehaviour
             lightSlider.value = 0; // Start at the default value
             lightSlider.gameObject.SetActive(false); // Hide initially
         }
+
         // Ensure UI is initially hidden
         ResetUI();
         if (uiContainer != null) uiContainer.SetActive(false);
@@ -120,6 +133,7 @@ public class UIControllerLight : MonoBehaviour
         currentZ = 0;
         currentL = 5;
     }
+
 
     void Update()
     {
@@ -416,15 +430,15 @@ public class UIControllerLight : MonoBehaviour
         }
         else if (lastHoveredUI == hoverLoupe)
         {
-            TriggerConfirmation(confirmationCancel); // Enter Zoom Mode when hoverLoupe is selected
+            EnterZoomMode();
         }
         else if (lastHoveredUI == hoverLightBulb)
         {
-            EnterLightBulbMode(); // Enter Light Bulb Mode when hoverLightBulb is selected
+            TriggerConfirmation(confirmationCancel); // Enter Light Bulb Mode when hoverLightBulb is selected
         }
         else if (lastHoveredUI == hoverCancel)
         {
-            
+            Debug.Log("Cancel Action Triggered.");
             TriggerConfirmation(confirmationCancel); // Show confirmationCancel when cancel is hovered
         }
     }
@@ -460,6 +474,15 @@ public class UIControllerLight : MonoBehaviour
 
             // Start a coroutine to hide the slider after 2 seconds
             StartCoroutine(HideZoomSliderAfterDelay());
+        }
+
+        // Load the next scene (Intro3) after exiting Light Mode
+        if (!string.IsNullOrEmpty(nextSceneName))
+        {
+            serialPort.Close(); 
+            PCANBasic.Uninitialize(deviceHandle);
+            Debug.Log($"Loading next scene: {nextSceneName}");
+            SceneManager.LoadScene(nextSceneName);
         }
     }
     private void EnterLightBulbMode()
@@ -497,14 +520,6 @@ public class UIControllerLight : MonoBehaviour
         // Start a coroutine to hide the slider after 2 seconds
         StartCoroutine(HideLightSliderAfterDelay());
 
-        // Load the next scene (Intro3) after exiting Light Mode
-        if (!string.IsNullOrEmpty(nextSceneName))
-        {
-            serialPort.Close();
-            PCANBasic.Uninitialize(deviceHandle);
-            Debug.Log($"Loading next scene: {nextSceneName}");
-            SceneManager.LoadScene(nextSceneName);
-        }
     }
 
 
