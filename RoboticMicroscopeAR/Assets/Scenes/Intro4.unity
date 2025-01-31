@@ -1653,7 +1653,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mObserverBehaviour: {fileID: 2113993399}
   mHiddenRoot: {fileID: 0}
-  mTargetName: whatsappimage2025-01-30at19
+  mTargetName: ARMODE
   mDatasetName: Vuforia/qr1.xml
   mCastedBehaviour: {fileID: 2113993399}
   mMeshFilter: {fileID: 0}
@@ -1717,13 +1717,13 @@ MonoBehaviour:
   PreviewVisible: 1
   RuntimeOcclusion: 0
   RuntimeCollider: 0
-  mTrackableName: whatsappimage2025-01-30at19
+  mTrackableName: ARMODE
   mInitializedInEditor: 1
   mDataSetPath: Vuforia/qr1.xml
-  mAspectRatio: 0.855556
+  mAspectRatio: 0.853462
   mImageTargetType: 0
   mWidth: 1
-  mHeight: 0.855556
+  mHeight: 0.853462
   mRuntimeTexture: {fileID: 0}
   mMotionHint: 1
   mTrackingOptimization: 0
